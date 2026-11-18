@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart RFID Attendance System</title>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif;color:#172554;background:#eef4ff}
+*{box-sizing:border-box}body{margin:0}.top{background:linear-gradient(120deg,#082b73,#0877d1);color:#fff;padding:26px 18px}
+.wrap{max-width:1100px;margin:auto}.top h1{margin:0 0 8px;font-size:clamp(25px,4vw,38px)}.top p{margin:0;color:#dbeafe}
+main{max-width:1100px;margin:22px auto;padding:0 16px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.card,.panel{background:white;border:1px solid #dbeafe;border-radius:16px;padding:18px;box-shadow:0 5px 18px #0b3b7b0d}
+.metric{font-size:30px;font-weight:800;color:#0755ad;margin-top:6px}.label{color:#526581;font-size:14px}
+.panel{margin-top:16px}.panel h2{font-size:20px;margin:0 0 12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.scan{flex:1;min-width:230px;font-size:18px;padding:13px;border:2px solid #93c5fd;border-radius:10px}
+button{border:0;border-radius:9px;padding:12px 15px;font-weight:700;cursor:pointer;background:#0759bf;color:white}button.secondary{background:#e0ecff;color:#12376c}button.danger{background:#fee2e2;color:#991b1b}
+.status{margin-top:12px;padding:12px;border-radius:10px;background:#eff6ff;color:#1e40af}.status.good{background:#dcfce7;color:#166534}.status.bad{background:#fee2e2;color:#991b1b}
+.small{font-size:13px;color:#64748b;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin-top:10px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid #e2e8f0;font-size:14px}th{background:#f1f5f9;color:#334155}td{overflow-wrap:anywhere}
+.tablewrap{overflow-x:auto}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:700;font-size:12px}
+.controls input{padding:10px;border:1px solid #cbd5e1;border-radius:8px;min-width:180px}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 24px;color:#64748b;font-size:12px}
+@media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.card,.panel{padding:14px}th,td{white-space:nowrap}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><h1>Smart RFID Attendance System</h1><p>Scan a card • Identify the student • Record today’s attendance</p></div></header>
+<main>
+<section class="grid">
+ <div class="card"><div class="label">Registered students</div><div class="metric" id="total">29</div></div>
+ <div class="card"><div class="label">Present today</div><div class="metric" id="present">0</div></div>
+ <div class="card"><div class="label">Not yet marked</div><div class="metric" id="missing">29</div></div>
+ <div class="card"><div class="label">Attendance today</div><div class="metric" id="percent">0%</div></div>
+</section>
+<section class="panel">
+<h2>Scan RFID card</h2>
+<p class="small">Click the box once, then scan with your Windows USB RFID reader. The reader should type the card number and press Enter. You can also type a card ID and press Enter to test.</p>
+<div class="row"><input id="cardInput" class="scan" autocomplete="off" placeholder="Scan or type RFID card ID" aria-label="RFID card ID"><button id="markBtn">Mark attendance</button><button id="focusBtn" class="secondary">Focus scan box</button></div>
+<div id="status" class="status" role="status">Ready. Focus the scan box and scan a registered card.</div>
+</section>
+<section class="panel">
+<div class="row" style="justify-content:space-between"><h2 style="margin:0">Today’s attendance</h2><div class="row"><button id="exportBtn">Export CSV</button><button id="resetBtn" class="danger">Clear today</button></div></div>
+<div class="row controls" style="margin-top:12px"><input id="search" placeholder="Search name or roll number"><span class="small" id="dateLabel"></span></div>
+<div class="tablewrap"><table><thead><tr><th>Roll No.</th><th>Student name</th><th>Card ID</th><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p class="small">Records are saved in this browser on this computer. Export CSV regularly for a backup. Clearing today removes only today’s records from this browser.</p>
+</section>
+<section class="panel">
+<h2>Setup notes</h2>
+<ul class="small">
+<li>This is a laptop browser app for a USB RFID reader that behaves like a keyboard. Keep the scan box focused.</li>
+<li>The sample card IDs below must match the numbers your reader outputs. Replace them with your actual card IDs if different.</li>
+<li>This browser page does not automatically send data to the Arduino/TFT. That needs a separate serial bridge or a backend connection.</li>
+<li>Student photos and real-time TFT updates are not included in this starter version.</li>
+</ul>
+</section>
+</main>
+<footer>Smart RFID Attendance System · Local browser prototype</footer>
+<script>
+const students = [
+ ["Andriya","0005774162"],["Arun Keerthi","0005792916"],["Bhupendra","0006138218"],
+ ["Devasamritha","0005785086"],["Dharshan","0006211175"],["Gohit","0005761160"],
+ ["Gugayogan","0005780811"],["Gurusharan","0005941049"],["Harish varmaan","0005754826"],
+ ["Hemasri","0005791498"],["Kabilan","0006234384"],["Krish","0006240497"],
+ ["Lishanth Kumaran","0005770470"],["Mothiswar","0006330410"],["Mrinali","0006266926"],
+ ["Pragan","0006362359"],["Prathanya","0000632688"],["Rakshith","0006333341"],
+ ["Rithikraj","0006328101"],["Sailesh Sabapathi","0006362903"],["Sanjayraj","0006297020"],
+ ["Sanjivitha","0005754464"],["Sasidharan","0006201666"],["Sharmitha","0006269068"],
+ ["Shwani","0005758537"],["Soundaryan","0006131386"],["Vaseegran","0005789479"],
+ ["Yaashigha","0006197586"],["Yashwanth","0005797185"]
+];
+const keyForDate = d => "smart-rfid-attendance-" + d;
+const localDate = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const displayDate = d => { const [y,m,day]=d.split("-"); return `${day}-${m}-${y}`; };
+const today = localDate();
+document.getElementById("dateLabel").textContent = "Date: " + displayDate(today);
+const input=document.getElementById("cardInput"), statusBox=document.getElementById("status");
+const clean = s => String(s||"").replace(/\D/g,"");
+const map = new Map(students.map((s,i)=>[clean(s[1]),{name:s[0],roll:i+1,card:clean(s[1])}]));
+function getRecords(){try{return JSON.parse(localStorage.getItem(keyForDate(today))||"[]")}catch{return []}}
+function saveRecords(records){localStorage.setItem(keyForDate(today),JSON.stringify(records))}
+function setStatus(message,type=""){statusBox.className="status "+type;statusBox.textContent=message}
+function mark(){
+ const card=clean(input.value); input.value="";
+ if(!card){setStatus("No card number received. Scan again.","bad");input.focus();return}
+ const student=map.get(card);
+ if(!student){setStatus("Unknown card: "+card+". Add this card ID to the student list in the HTML code.","bad");input.focus();return}
+ const records=getRecords();
+ if(records.some(r=>r.card===card)){setStatus(student.name+" (Roll No. "+student.roll+") is already marked present today.","bad");input.focus();return}
+ const now=new Date();
+ records.push({name:student.name,roll:student.roll,card:student.card,date:today,time:now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}),stamp:now.getTime()});
+ saveRecords(records); render();
+ setStatus("Attendance marked: "+student.name+" · Roll No. "+student.roll+" · "+records[records.length-1].time,"good");
+ input.focus();
+}
+function render(){
+ const records=getRecords(), q=document.getElementById("search").value.trim().toLowerCase();
+ document.getElementById("total").textContent=students.length;
+ document.getElementById("present").textContent=records.length;
+ document.getElementById("missing").textContent=Math.max(0,students.length-records.length);
+ document.getElementById("percent").textContent=Math.round(records.length/students.length*100)+"%";
+ const body=document.getElementById("rows"); body.innerHTML="";
+ const sorted=[...records].sort((a,b)=>a.stamp-b.stamp).filter(r=>`${r.name} ${r.roll} ${r.card}`.toLowerCase().includes(q));
+ if(!sorted.length){body.innerHTML='<tr><td colspan="6" class="small">No attendance records match yet.</td></tr>';return}
+ for(const r of sorted){const tr=document.createElement("tr");[String(r.roll).padStart(2,"0"),r.name,r.card,displayDate(r.date),r.time].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});const td=document.createElement("td");td.innerHTML='<span class="pill">Present</span>';tr.appendChild(td);body.appendChild(tr)}
+}
+function exportCSV(){
+ const records=getRecords(); if(!records.length){setStatus("No records to export yet.","bad");return}
+ const lines=[["Date","Time","Roll No","Student Name","Card ID","Status"],...records.map(r=>[r.date,r.time,r.roll,r.name,r.card,"Present"])];
+ const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="attendance-"+today+".csv";a.click();URL.revokeObjectURL(url);
+}
+document.getElementById("markBtn").addEventListener("click",mark);
+input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();mark()}});
+document.getElementById("focusBtn").addEventListener("click",()=>input.focus());
+document.getElementById("exportBtn").addEventListener("click",exportCSV);
+document.getElementById("search").addEventListener("input",render);
+document.getElementById("resetBtn").addEventListener("click",()=>{if(confirm("Clear all attendance records for today from this browser?")){saveRecords([]);render();setStatus("Today’s records cleared.","")};input.focus()});
+render();input.focus();
+</script>
+</body>
+</html>
